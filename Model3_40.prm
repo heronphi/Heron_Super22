@@ -1,0 +1,222 @@
+set Additional shared libraries            = ./shared_libs/libboundary_layers.so,./shared_libs/libcitcom_reference_comparison.so
+set CFL number                             = 0.5
+set End time                               = 1.0e9
+set Adiabatic surface temperature          = 1613.0
+set Use years in output instead of seconds = true
+set Timing output frequency                = 100
+set Nonlinear solver scheme                = single Advection, single Stokes
+
+set Output directory                       = output_vl2_40
+set Dimension                              = 2
+set Resume computation                     = auto
+
+subsection Boundary temperature model
+  set List of model names = spherical constant
+  subsection Spherical constant
+    set Inner temperature = 3700
+    set Outer temperature = 273
+  end
+end
+
+subsection Geometry model
+  set Model name = spherical shell
+
+  subsection Spherical shell
+    set Inner radius  = 3481000
+    set Opening angle = 360
+    set Outer radius  = 6371000
+  end
+end
+
+subsection Gravity model
+  set Model name = radial constant
+
+  subsection Radial constant
+    set Magnitude = 9.81
+  end
+end
+
+
+subsection Initial temperature model
+  set Model name = citcom reference comparison
+  subsection Citcom reference comparison
+    set Age top boundary layer = 7e7
+    set Age bottom boundary layer = 1.5e8
+    set dT = 800
+    set Thickness bottom boundary layer = 100000
+    subsection Function
+      set Function expression = 1;0
+    end
+  end
+end
+
+subsection Initial composition model
+  set Model name = Boundary layers
+
+  subsection Boundary layers
+    set Upper boundary layer thickness = 7000
+    set Lower boundary layer thickness = 100000
+    set Lithosphere thickness        = 100000
+    set Mantle morb content          = 0.18
+  end
+end
+
+subsection Compositional fields
+  set Number of fields = 2
+  set Names of fields = Harzburgite, MORB
+  set Compositional field methods = particles, particles
+  set Mapped particle properties = Harzburgite:initial Harzburgite, MORB:initial MORB
+end
+
+subsection Material model
+  set Model name = Steinberger
+  set Material averaging = geometric average only viscosity
+  subsection Steinberger model
+    set Data directory                   = ./tables/
+    set Material file names              = harz-xu2008.txt, morb-xu2008.txt
+    set Radial viscosity file name       = radial-visc-simple-2.txt
+    set Bilinear interpolation           = true
+    set Latent heat                      = false
+    set Use lateral average temperature for viscosity  = false
+    set Maximum viscosity                = 5e23
+    set Minimum viscosity                = 1e20
+
+    # This effectively means no special lateral limitation since 
+    # the global limitation above is smaller than this lateral value
+    set Maximum lateral viscosity variation = 1e4
+  end
+end
+
+
+
+
+subsection Mesh refinement
+  set Initial adaptive refinement        = 1
+
+  set Initial global refinement          = 5
+  set Minimum refinement level           = 4
+  set Refinement fraction                = 0.4
+  set Coarsening fraction                = 0.05
+
+  set Strategy                           = nonadiabatic temperature,minimum refinement function, composition, viscosity, boundary
+
+  set Time steps between mesh refinement = 3
+
+  subsection Boundary
+    set Boundary refinement indicators = top, bottom
+  end
+
+  subsection Minimum refinement function
+    set Function constants  =
+    set Function expression = if (depth > 2500000,7,if(depth > 660000,5,if(depth > 80000,6,7)))
+    set Variable names      = depth,y,z
+  end
+end
+
+subsection Heating model
+  set List of model names = constant heating, adiabatic heating, shear heating
+  subsection Constant heating
+   set Radiogenic heating rate = 2.09e-12 # after Korenaga 2017
+  end
+
+#  subsection Shear heating
+#    set Cohesion for maximum shear stress = 1e7
+#    set Friction angle for maximum shear stress = 0.085
+#  end
+end
+
+# The parameters below this comment were created by the update script
+# as replacement for the old 'Model settings' subsection. They can be
+# safely merged with any existing subsections with the same name.
+
+subsection Boundary temperature model
+  set Fixed temperature boundary indicators   = 0,1
+end
+
+subsection Boundary velocity model
+  set Tangential velocity boundary indicators = 0
+end
+
+subsection Boundary velocity model
+  set Prescribed velocity boundary indicators = top:gplates
+  set Tangential velocity boundary indicators = bottom
+  subsection GPlates model
+    set Data directory = /home/p/pheron/pheron/ASPECT_June22/aspect//data/boundary-velocity/gplates/kenny-options/
+    set Velocity file name = velocity_40.gpml
+#velocity_0.00Ma.gpml
+    set Data file time step = 1e6
+    set Point one = 1.5708,4.87
+    set Point two = 1.5708,5.24
+    set Lithosphere thickness = 660000
+  end
+end
+
+
+
+subsection Postprocess
+  set List of postprocessors = visualization,velocity statistics,temperature statistics,heat flux statistics, depth average, heating statistics, composition statistics, particles
+
+  subsection Particles
+    set Number of particles = 100000
+    set Load balancing strategy = remove and add particles
+    set Minimum particles per cell = 15
+    set Maximum particles per cell = 120
+    set Time between data output = 1e6
+    set Data output format = none
+    set List of particle properties = initial composition
+    set Interpolation scheme    = quadratic least squares
+    set Particle generator name = reference cell
+    set Update ghost particles = true
+
+    subsection Generator
+      subsection Reference cell
+        set Number of particles per cell per direction = 3
+      end
+    end
+
+    subsection Interpolator
+      subsection Quadratic least squares
+        set Use quadratic least squares limiter = true
+      end
+    end
+  end
+
+  subsection Visualization
+    set Output format                 = vtu
+    set List of output variables      = nonadiabatic temperature,nonadiabatic pressure, Vp anomaly, Vs anomaly, melt fraction, material properties, artificial viscosity, heating, strain rate
+    set Time between graphical output = 1e6
+    set Interpolate output            = false
+    set Number of grouped files       = 2
+
+    subsection Material properties
+      set List of material properties = density,thermal expansivity, specific heat, viscosity
+    end
+  end
+
+  subsection Depth average
+    set Time between graphical output = 1e7
+  end
+
+end
+
+subsection Checkpointing
+  set Steps between checkpoint = 40
+  set Time between checkpoint = 1800
+end
+
+subsection Termination criteria
+  set Checkpoint on termination = true
+end
+
+subsection Solver parameters
+  subsection Stokes solver parameters
+    set Linear solver tolerance = 1e-5
+    set Number of cheap Stokes solver steps = 2000 # 200
+  end
+end
+
+subsection Solver parameters
+  subsection Stokes solver parameters
+    set Stokes solver type = block GMG
+  end
+end
